@@ -1,0 +1,13 @@
+version: '3'
+services:
+  development-aws:
+    restart: always
+    build:
+      context: ../
+      dockerfile: ./docker/Dockerfile
+    image: python:3.7
+    container_name: 'development-aws'
+    working_dir: '/work'
+    tty: true
+    volumes:
+      - ../:/work
