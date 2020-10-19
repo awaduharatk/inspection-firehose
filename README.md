@@ -135,3 +135,13 @@ Lambda側とFirehose側のBufferTimeで最大12分くらいBufferできる？
 
 ファイルサイズ等、まだ見切れていない
 
+# 追加検証
+
+### 改行できない問題
+  KDSにPUTする際に'\n'を入れてどうなるか見てみる
+
+### LambdaがS3トリガーで動くか見てみる
+
+#### 検証構成
+  Python → KDS → Firehose → Lambda → S3 → Lambda → S3
+
