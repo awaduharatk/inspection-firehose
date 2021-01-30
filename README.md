@@ -98,6 +98,7 @@ aws kinesis describe-stream --stream-name firehoseStream
     ```
   * Error prefix
     ```
+    Firehose/error/processing/
     ```
 
 ### putレコード
@@ -129,19 +130,88 @@ aws kinesis describe-stream --stream-name firehoseStream
 出力ファイルはS3ディrクトリ参照
 
 
-## Python → KDS → Firehose → Lambda → S3
+## filter検証
+filterできるか検証  
+`output_record`のdataを空にして返却することによって可能。  
+他にも方法があるかも？  
 
-Lambda側とFirehose側のBufferTimeで最大12分くらいBufferできる？
 
-ファイルサイズ等、まだ見切れていない
+#### pythonコード
 
-# 追加検証
+accountIdが"123"のものだけにfilter
+```
+from __future__ import print_function
 
-### 改行できない問題
-  KDSにPUTする際に'\n'を入れてどうなるか見てみる
+import base64
+import json as json2
 
-### LambdaがS3トリガーで動くか見てみる
+def lambda_handler(event, context):
+    output = []
 
-#### 検証構成
-  Python → KDS → Firehose → Lambda → S3 → Lambda → S3
+    for record in event['records']:
+        payload = base64.b64decode(record['data'])
+        print("start!!!")
+        
+        json_record = json2.loads(payload)
+        print(json_record['accountId'])
+        if json_record['accountId'] == '123':
+            json_record['status'] = 'processed'
+            payload = json2.dumps(json_record)
+            payload = payload + '\n'
+        
+            output_record = {
+                'recordId': record['recordId'],
+                'result': 'Ok',
+                'data': base64.b64encode(payload)
+            }
+        else:
+            output_record = {
+                'recordId': record['recordId'],
+                'result': 'Ok',
+                'data': ""
+            }
+        output.append(output_record)
 
+    return {'records': output}
+
+```
+
+
+#### 流したデータ
+stock_geo.pyを実行
+```
+{"accountId": "456", "geoPointId": "ASD", "eventUniqueKey": "12345678901234567890123456789012", "eventDiv": "0", "eventTime": "2021-01-30 17:38:07"}
+{"accountId": "123", "geoPointId": "ASD", "eventUniqueKey": "12345678901234567890123456789012", "eventDiv": "0", "eventTime": "2021-01-30 17:38:08"}
+{"accountId": "456", "geoPointId": "ASD", "eventUniqueKey": "12345678901234567890123456789012", "eventDiv": "0", "eventTime": "2021-01-30 17:38:09"}
+{"accountId": "123", "geoPointId": "ASD", "eventUniqueKey": "12345678901234567890123456789012", "eventDiv": "0", "eventTime": "2021-01-30 17:38:10"}
+{"accountId": "456", "geoPointId": "ASD", "eventUniqueKey": "12345678901234567890123456789012", "eventDiv": "0", 
+```
+
+
+#### 出力されたデータ
+`s3/filter-test/file_20210130083525_KZGh33UsDLZfilter-test-2-2021-01-30-08-35-25-32dffac1-7abd-44cd-a619-b2e3b53b87bb`
+```
+{"status": "processed", "eventTime": "2021-01-30 17:35:25", "geoPointId": "ASD", "eventDiv": "1", "eventUniqueKey": "12345678901234567890123456789012", "accountId": "123"}
+{"status": "processed", "eventTime": "2021-01-30 17:35:27", "geoPointId": "ASD", "eventDiv": "1", "eventUniqueKey": "12345678901234567890123456789012", "accountId": "123"}
+{"status": "processed", "eventTime": "2021-01-30 17:35:29", "geoPointId": "ASD", "eventDiv": "1", "eventUniqueKey": "12345678901234567890123456789012", "accountId": "123"}
+{"status": "processed", "eventTime": "2021-01-30 17:35:31", "geoPointId": "ASD", "eventDiv": "1", "eventUniqueKey": "12345678901234567890123456789012", "accountId": "123"}
+{"status": "processed", "eventTime": "2021-01-30 17:35:33", "geoPointId": "ASD", "eventDiv": "1", "eventUniqueKey": "12345678901234567890123456789012", "accountId": "123"}
+```
+
+
+
+# Javaで動かしてみる
+
+
+### Firehose設定
+  #### S3
+  * Prefix  
+    ```
+    Firehose/java-processing/!{timestamp:yyyyMMdd}/file_!{timestamp:yyyyMMddHHmmss}_!{firehose:random-string}
+    ```
+  * Error prefix
+    ```
+    Firehose/error/java-processing/
+    ```
+
+    
