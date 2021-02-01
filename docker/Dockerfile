@@ -26,3 +26,7 @@ RUN pip install -r ./libList.txt
 
 # aws configure
 RUN cp -r ./aws ~/.aws
+
+# alias
+RUN echo "alias la='ls -al'" >> /root/.bashrc
+RUN echo "alias ll='ls -l'" >> /root/.bashrc
